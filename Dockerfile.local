@@ -1,0 +1,41 @@
+# Local development sandbox image — uses pre-built source from this repo
+FROM node:22-alpine
+
+RUN apk add --no-cache dumb-init git bash
+
+# Non-root user
+RUN addgroup -g 1001 -S ruflo \
+    && adduser -S -D -H -u 1001 -h /home/ruflo -s /bin/bash -G ruflo ruflo \
+    && mkdir -p /home/ruflo/.claude-flow /workspace \
+    && chown -R ruflo:ruflo /home/ruflo /workspace
+
+WORKDIR /app
+
+# Copy project (built dist + node_modules already exist from pnpm install)
+COPY --chown=ruflo:ruflo bin/ ./bin/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli/dist/ ./v3/@claude-flow/cli/dist/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli/bin/ ./v3/@claude-flow/cli/bin/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli/package.json ./v3/@claude-flow/cli/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli/node_modules/ ./v3/@claude-flow/cli/node_modules/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli-core/dist/ ./v3/@claude-flow/cli-core/dist/
+COPY --chown=ruflo:ruflo v3/@claude-flow/cli-core/package.json ./v3/@claude-flow/cli-core/
+COPY --chown=ruflo:ruflo v3/@claude-flow/shared/dist/ ./v3/@claude-flow/shared/dist/
+COPY --chown=ruflo:ruflo v3/@claude-flow/shared/package.json ./v3/@claude-flow/shared/
+COPY --chown=ruflo:ruflo v3/@claude-flow/providers/dist/ ./v3/@claude-flow/providers/dist/
+COPY --chown=ruflo:ruflo v3/@claude-flow/providers/package.json ./v3/@claude-flow/providers/
+COPY --chown=ruflo:ruflo v3/@claude-flow/memory/dist/ ./v3/@claude-flow/memory/dist/
+COPY --chown=ruflo:ruflo v3/@claude-flow/memory/package.json ./v3/@claude-flow/memory/
+COPY --chown=ruflo:ruflo package.json ./
+
+ENV NODE_ENV=production \
+    CLAUDE_CODE_SANDBOX_MODE=strict \
+    CLAUDE_FLOW_CONFIG=/app/claude-flow.config.json \
+    HOME=/home/ruflo
+
+COPY --chown=ruflo:ruflo claude-flow.config.json ./
+
+USER ruflo
+WORKDIR /app
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "node", "/app/bin/cli.js"]
+CMD ["doctor"]
